@@ -1,0 +1,19 @@
+[
+  {
+    "task_id": "example_add_one",
+    "predicted_c_funcs": [
+      {
+        "pred_func": "int func0(int x) {\n    return x + 1;\n}\n"
+      }
+    ]
+  },
+  {
+    "task_id": "example_add_ignore_y",
+    "opt": "O3",
+    "predicted_c_funcs": [
+      {
+        "pred_func": "int func0(int x) {\n    return x + 1;\n}\n"
+      }
+    ]
+  }
+]
