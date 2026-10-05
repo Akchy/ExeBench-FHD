@@ -4,7 +4,7 @@ the card's splits against the shards. `{{repo_id}}` in the card becomes --repo-i
 `hf auth login` or HF_TOKEN.
 
     python -m scripts.release.upload_to_hf --repo-id <user-or-org>/ExeBenchPlus \\
-        --data-dir datasets_parquet [--card dataset_card/README.md] [--private]
+        --data-dir datasets_hf_parquet [--card dataset_card/README.md] [--private]
     python -m scripts.release.upload_to_hf --repo-id <...> --card-only
 """
 import argparse
@@ -12,11 +12,13 @@ import fnmatch
 import glob
 import json
 import os
+import re
 import sys
 
 import yaml
 
 DEFAULT_CARD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "dataset_card", "README.md")
+SHARD_RE = re.compile(r"^(?P<split>\w+)-(?P<idx>\d{5})-of-(?P<total>\d{5})\.parquet$")
 
 
 def read_card_yaml(card_path):
@@ -47,8 +49,17 @@ def card_splits(meta):
 def check_card_against_data(card_path, data_dir):
     """List of mismatches between the card's splits and the shards (and splits.json) in data_dir."""
     splits = card_splits(read_card_yaml(card_path))
-    shards = sorted(os.path.relpath(p, data_dir) for p in glob.glob(os.path.join(data_dir, "data", "*.parquet")))
+    shards = sorted(os.path.basename(p) for p in glob.glob(os.path.join(data_dir, "*.parquet")))
     problems = []
+    shard_sets = {}
+    for s in shards:
+        m = SHARD_RE.match(s)
+        if m:
+            shard_sets.setdefault(m["split"], []).append((int(m["idx"]), int(m["total"])))
+    for split, ids in sorted(shard_sets.items()):
+        totals = {t for _, t in ids}
+        if len(totals) != 1 or sorted(i for i, _ in ids) != list(range(totals.pop())):
+            problems.append(f"split {split!r}: incomplete or inconsistent shard set ({len(ids)} files)")
     claimed = set()
     for split, pattern in splits.items():
         matched = [s for s in shards if fnmatch.fnmatch(s, pattern)]
@@ -74,7 +85,7 @@ def check_card_against_data(card_path, data_dir):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--repo-id", required=True, help="<user-or-org>/<name> of the HF dataset repo")
-    ap.add_argument("--data-dir", default="datasets_parquet", help="--output-dir of convert_jsonl_to_parquet")
+    ap.add_argument("--data-dir", default="datasets_hf_parquet", help="--output-dir of convert_jsonl_to_hf_parquet")
     ap.add_argument("--card", default=DEFAULT_CARD, help="dataset card (README.md with YAML front matter)")
     ap.add_argument("--private", action="store_true", help="create the repo as private (only if it doesn't exist)")
     ap.add_argument("--card-only", action="store_true", help="upload only the card")
@@ -102,7 +113,7 @@ def main(argv=None):
     api.create_repo(args.repo_id, repo_type="dataset", private=args.private, exist_ok=True)
     api.upload_large_folder(
         repo_id=args.repo_id, repo_type="dataset", folder_path=args.data_dir,
-        allow_patterns=["README.md", "data/*.parquet"], num_workers=args.num_workers,
+        allow_patterns=["README.md", "*.parquet"], num_workers=args.num_workers,
     )
     print(f"uploaded to https://huggingface.co/datasets/{args.repo_id}")
 

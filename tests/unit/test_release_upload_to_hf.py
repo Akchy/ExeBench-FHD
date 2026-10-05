@@ -1,10 +1,9 @@
 import json
-import re
 from pathlib import Path
 
 import pytest
 
-from scripts.release import convert_jsonl_to_parquet as cv
+from scripts.release import convert_jsonl_to_hf_parquet as cv
 from scripts.release import upload_to_hf as up
 
 CARD = Path(up.DEFAULT_CARD)
@@ -13,25 +12,22 @@ SPLITS = ["train_synth_compilable", "train_real_compilable", "train_synth_simple
 
 
 def make_data_dir(tmp_path, splits=SPLITS):
-    (tmp_path / "data").mkdir()
     for s in splits:
-        (tmp_path / "data" / f"{s}-00000-of-00001.parquet").write_bytes(b"")
+        (tmp_path / f"{s}-00000-of-00001.parquet").write_bytes(b"")
     return tmp_path
 
 
 def test_card_declares_the_ten_exebench_splits():
     splits = up.card_splits(up.read_card_yaml(CARD))
     assert sorted(splits) == sorted(SPLITS)
-    assert all(pattern == f"data/{s}-*.parquet" for s, pattern in splits.items())
+    assert all(pattern == f"{s}-*.parquet" for s, pattern in splits.items())
     assert up.read_card_yaml(CARD)["license"] == "mit"
 
 
-def test_card_documents_every_field_and_the_converters_json_columns():
+def test_card_documents_every_field_of_the_converter():
     text = CARD.read_text()
-    for field in cv.FIELDS:
+    for field in cv.FEATURES:
         assert f"`{field}`" in text, field
-    block = re.search(r"JSON_COLUMNS = (\[.*?\])", text, re.S).group(1)
-    assert json.loads(block) == cv.JSON_COLUMNS
 
 
 def test_render_card_fills_repo_id():
@@ -45,7 +41,7 @@ def test_check_passes_when_card_and_data_agree(tmp_path):
 
 def test_check_reports_missing_split_and_orphan_shard(tmp_path):
     d = make_data_dir(tmp_path, [s for s in SPLITS if s != "test_real"])
-    (d / "data" / "stray-00000-of-00001.parquet").write_bytes(b"")
+    (d / "stray-00000-of-00001.parquet").write_bytes(b"")
     problems = up.check_card_against_data(CARD, d)
     assert any("'test_real': no shard" in p for p in problems)
     assert any("stray-00000-of-00001.parquet is not covered" in p for p in problems)
@@ -59,6 +55,13 @@ def test_check_reports_splits_json_mismatch_and_unfinished_run(tmp_path):
     assert any(f"'{SPLITS[0]}' is only in the card" in p for p in problems)
     assert any("'extra' is only in splits.json" in p for p in problems)
     assert any("unfinished conversion" in p for p in problems)
+
+
+def test_check_reports_incomplete_shard_set(tmp_path):
+    d = make_data_dir(tmp_path)
+    (d / "test_real-00000-of-00001.parquet").rename(d / "test_real-00000-of-00002.parquet")
+    problems = up.check_card_against_data(CARD, d)
+    assert any("'test_real': incomplete" in p for p in problems)
 
 
 class FakeApi:
@@ -82,7 +85,7 @@ def test_main_uploads_rendered_card_and_shards(tmp_path, fake_api):
     names = [c[0] for c in fake_api]
     assert names == ["create_repo", "upload_large_folder"]
     assert fake_api[0][2]["private"] is True and fake_api[0][2]["repo_type"] == "dataset"
-    assert fake_api[1][2]["allow_patterns"] == ["README.md", "data/*.parquet"]
+    assert fake_api[1][2]["allow_patterns"] == ["README.md", "*.parquet"]
     assert 'load_dataset("anon/EBP"' in (d / "README.md").read_text()
 
 

@@ -9,9 +9,10 @@ problems we found mean that a function's C source cannot be fully recovered
 from its assembly: parameter order is ambiguous when integer and
 floating-point parameters are mixed, unused parameters vanish from optimized
 code, and constants referenced by the function are not part of the record.
-ExeBenchPlus keeps the 23 original ExeBench fields unchanged and adds 16
-fields that supply the missing information or flag unreliable records. Records
-are flagged, not removed, so the dataset can replace ExeBench directly.
+ExeBenchPlus keeps the 16 columns of ExeBench's Hugging Face release unchanged
+and adds 16 fields that supply the missing information or flag unreliable
+records. Records are flagged, not removed, so the dataset can replace ExeBench
+directly.
 
 This repository contains the extraction pipeline that computes the new fields,
 the audit scripts, the evaluation harness, the conversion and upload scripts
@@ -53,7 +54,7 @@ appendix. The dataset card, including loading instructions, is in
   cross compilers (see [`md_files/ExeBenchPlus.md`](md_files/ExeBenchPlus.md#architectures-and-toolchain)).
 - Python packages: the extraction, audit and evaluation code uses only the
   standard library. Tests need `pytest`; `scripts/release` needs `pyarrow`,
-  `pyyaml` and `huggingface_hub`; `scripts/survey` uses `pyarrow` for reading
+  `datasets`, `pyyaml` and `huggingface_hub`; `scripts/survey` uses `pyarrow` for reading
   Arrow shards; `scripts/experiments` needs `openai`.
 - The raw ExeBench snapshot (`jordiae/exebench` on Hugging Face). Scripts look
   for it in the Hugging Face hub cache (`HF_HUB_CACHE`, else
@@ -179,12 +180,12 @@ function name. The other corpus statistics come from the scripts in
 ## Release and experiment
 
 ```bash
-# JSONL splits -> Parquet shards
-python -m scripts.release.convert_jsonl_to_parquet \
-    --input-dir datasets_jsonl_v2 --output-dir datasets_parquet
+# JSONL splits -> Parquet shards in ExeBench's Hugging Face schema
+python -m scripts.release.convert_jsonl_to_hf_parquet \
+    --input-dir datasets_jsonl_v2 --output-dir datasets_hf_parquet
 
-# upload shards and dataset card (requires `hf auth login`)
-python -m scripts.release.upload_to_hf --repo-id <org>/<name> --data-dir datasets_parquet
+# upload shards and dataset card (requires `hf auth login` with a write token)
+python -m scripts.release.upload_to_hf --repo-id <org>/<name> --data-dir datasets_hf_parquet
 ```
 
 The appendix A.6 experiment asks an LLM to decompile `objdump_asm` with and
