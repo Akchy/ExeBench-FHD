@@ -136,3 +136,33 @@ def test_normalize_error_masks_volatile_parts():
     asm_b = asm_a.replace("ccTq4zyZ", "ccdrhoTu").replace(":70:", ":48:")
     assert efc.normalize_error(asm_a) == efc.normalize_error(asm_b)
     assert efc.normalize_error(None) is None
+
+
+def test_run_tool_uses_private_tmpdir_and_removes_it():
+    import os
+    res = efc.run_tool(["sh", "-c", 'touch "$TMPDIR/leak.o" && echo "$TMPDIR"'], timeout=10)
+    tmpdir = res.stdout.strip()
+    assert res.returncode == 0 and os.path.basename(tmpdir).startswith("exb_tool_")
+    assert not os.path.exists(tmpdir)  # GCC-style temp file gone with its dir
+
+
+def test_run_tool_timeout_kills_children_and_cleans_tmpdir(tmp_path):
+    import os, subprocess, time
+    import pytest
+    marker = tmp_path / "child_pid"
+    # a child that outlives the parent shell unless the whole group is killed
+    cmd = ["sh", "-c", f'touch "$TMPDIR/big.o"; echo "$TMPDIR" > {tmp_path}/tmpdir; '
+                       f'sleep 30 & echo $! > {marker}; wait']
+    with pytest.raises(subprocess.TimeoutExpired):
+        efc.run_tool(cmd, timeout=1)
+    time.sleep(0.2)
+    child = int(marker.read_text())
+    alive = os.path.exists(f"/proc/{child}") and "Z" not in open(f"/proc/{child}/stat").read().split()[2]
+    assert not alive
+    assert not os.path.exists((tmp_path / "tmpdir").read_text().strip())
+
+
+def test_normalize_error_masks_run_tool_tmpdir():
+    a = "compile_failed: /usr/bin/ld: /tmp/exb_tool_vnsm53v0/cc0xOcFi.o: in function `func0':"
+    b = "compile_failed: /usr/bin/ld: /tmp/ccMHWiEo.o: in function `func0':"
+    assert efc.normalize_error(a) == efc.normalize_error(b) == "compile_failed: /usr/bin/ld: <tmp>.o: in function `func0':"

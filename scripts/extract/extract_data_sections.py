@@ -22,6 +22,7 @@ import sys
 import tempfile
 
 from scripts.check_split_leakage import ALL_SPLITS, iter_split
+from scripts.extract.extract_func_call import run_tool
 from scripts.preprocess.get_asm import rename_to_func0
 from scripts.regen_asm import pick_deps, strip_static
 
@@ -103,7 +104,7 @@ def compile_and_link(c_path, obj_path, out_path, map_path, compiler_argv,
     is full of implicit declarations."""
     cmd_c = [*compiler_argv, "-c", opt_flag, "-w", "-o", obj_path, c_path]
     try:
-        p = subprocess.run(cmd_c, capture_output=True, text=True, timeout=timeout)
+        p = run_tool(cmd_c, timeout)
     except subprocess.TimeoutExpired:
         return f"compile timeout after {timeout}s"
     except OSError as e:
@@ -113,7 +114,7 @@ def compile_and_link(c_path, obj_path, out_path, map_path, compiler_argv,
 
     cmd_l = [*compiler_argv, "-o", out_path, f"-Wl,-Map={map_path}", obj_path, "-lm"]
     try:
-        p = subprocess.run(cmd_l, capture_output=True, text=True, timeout=timeout)
+        p = run_tool(cmd_l, timeout)
     except subprocess.TimeoutExpired:
         return f"link timeout after {timeout}s"
     if p.returncode != 0:

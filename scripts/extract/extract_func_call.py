@@ -21,8 +21,11 @@ import argparse
 import json
 import os
 import re
+import shutil
+import signal
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from scripts.check_split_leakage import ALL_SPLITS, iter_split
@@ -157,11 +160,36 @@ def remove_files(paths):
             pass
 
 
+def run_tool(cmd, timeout):
+    """`subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)`
+    for compiler/linker calls, minus two leaks. GCC writes its intermediate
+    objects to $TMPDIR (default /tmp) and deletes them only on a normal
+    exit, and a plain timeout kills just the `gcc` driver, not its cc1/as/ld
+    children - so a timed-out build of a function with a huge static array
+    left a 17 GB `/tmp/cc*.o` behind per attempt (172 GB from one row). Here
+    each call gets a private TMPDIR that is always removed, and a timeout
+    kills the whole process group. Raises TimeoutExpired / OSError as
+    `subprocess.run` does."""
+    tmp = tempfile.mkdtemp(prefix="exb_tool_")
+    try:
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                             errors="replace", env={**os.environ, "TMPDIR": tmp}, start_new_session=True)
+        try:
+            out, err = p.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            os.killpg(p.pid, signal.SIGKILL)
+            p.communicate()
+            raise
+        return subprocess.CompletedProcess(cmd, p.returncode, out, err)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def compile_arch(source_file, output_file, compiler_argv, opt_flag=OPT_FLAG, timeout=GCC_TIMEOUT):
     cmd = compiler_argv + [opt_flag, str(source_file), "-o", str(output_file), "-lm"]
     try:
         # errors="replace": GCC echoes source string literals, which need not be UTF-8.
-        result = subprocess.run(cmd, capture_output=True, text=True, errors="replace", timeout=timeout)
+        result = run_tool(cmd, timeout)
         if result.returncode == 0:
             return True, None
         return False, result.stderr.strip()[:2000]
@@ -297,7 +325,7 @@ def _call_site(c_file, out_file, tc, opt_flag, timeout):
 
 _ERR_OUT_RE = re.compile(r"\S*/C_files/\S+?_(?:x86-64|x86|ARM32|ARM64)(?:_O[0-3s])?\.out")
 _ERR_WORK_RE = re.compile(r"\S*/C_files/")
-_ERR_TMP_RE = re.compile(r"/tmp/cc\w+\.(o|s)")
+_ERR_TMP_RE = re.compile(r"/tmp/(?:exb_tool_\w+/)?cc\w+\.(o|s)")  # bare /tmp, or run_tool's private TMPDIR
 _ERR_SLINE_RE = re.compile(r"(<tmp>\.s):\d+:")
 _ERR_OFF_RE = re.compile(r"\(([.\w]+)\+0x[0-9a-f]+\)")
 
