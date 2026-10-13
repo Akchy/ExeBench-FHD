@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Runnable example for scripts/exebench_eval.py using the two sample files here.
+"""Runnable example for scripts/exebenchplus_eval.py using the two sample files here.
 
 sample_exebench_dataset.json has one ordinary row and one with unused_param
 set (example_add_ignore_y). Its prediction in sample_predictions.json drops
@@ -11,7 +11,7 @@ Run: python3 -m scripts.examples.run_sample_eval
 import json
 from pathlib import Path
 
-from scripts.exebench_eval import example_evaluate_dataset_at_o0, exebench_validate_new, select_exe_wrapper
+from scripts.exebenchplus_eval import example_evaluate_dataset_at_o0, exebenchplus_validate, select_exe_wrapper
 
 _HERE = Path(__file__).parent
 _DATASET = _HERE / 'sample_exebench_dataset.json'
@@ -24,18 +24,18 @@ def main():
     print("unused_param never matters here, real_exe_wrapper is always right.\n")
     example_evaluate_dataset_at_o0(str(_DATASET))
 
-    print('\n=== exebench_validate_new (opt-aware) ===')
+    print('\n=== exebenchplus_validate (opt-aware) ===')
     print("example_add_ignore_y's prediction only declares `x` - matching a")
     print("real -O3 decompilation, where the unused `y` left no trace.")
     print("Its item['opt'] == 'O3' makes select_exe_wrapper() pick")
     print("opt_real_exe_wrapper instead of the fixed-arity real_exe_wrapper,")
     print('so the reduced-arity prediction compiles and runs at all.\n')
 
-    # exebench_validate_new writes results back into the file, so use a copy.
+    # exebenchplus_validate writes results back into the file, so use a copy.
     work_path = _HERE / '_sample_predictions_scratch.json'
     work_path.write_text(_PREDICTIONS.read_text())
 
-    exebench_validate_new(
+    exebenchplus_validate(
         model_name='sample_eval_example',
         file_path=str(work_path),
         exeb_dataset=str(_DATASET),

@@ -10,28 +10,18 @@
     "func_def": "int add_one(int x) {\n    return x + 1;\n}\n",
     "func_head": "int add_one(int x)",
     "real_exe_wrapper": "extern \"C\" {\n#include \"placeholder.c\"\n}\n\n#include <fstream>\n#include <nlohmann/json.hpp>\nusing json = nlohmann::json;\n\nint main(int argc, char** argv) {\n    std::ifstream ifs(argv[1]);\n    json input_json = json::parse(ifs);\n    int x = input_json[\"x\"];\n    int result = add_one(x);\n    json output_json;\n    output_json[\"result\"] = result;\n    std::ofstream out_str(argv[2]);\n    out_str << output_json;\n    return 0;\n}\n",
-    "real_io_pairs": {
-      "input": [
-        {
-          "var": [
-            "x"
-          ],
-          "value": [
-            "3"
-          ]
-        }
-      ],
-      "output": [
-        {
-          "var": [
-            "result"
-          ],
-          "value": [
-            "4"
-          ]
-        }
-      ]
-    },
+    "real_io_pairs": [
+      {
+        "input": {
+          "x": 3
+        },
+        "output": {
+          "result": 4
+        },
+        "dummy_funcs": "",
+        "dummy_funcs_seed": 0
+      }
+    ],
     "unused_param": false
   },
   {
@@ -48,30 +38,19 @@
     "real_exe_wrapper": "extern \"C\" {\n#include \"placeholder.c\"\n}\n\n#include <fstream>\n#include <nlohmann/json.hpp>\nusing json = nlohmann::json;\n\nint main(int argc, char** argv) {\n    std::ifstream ifs(argv[1]);\n    json input_json = json::parse(ifs);\n    int x = input_json[\"x\"];\n    int y = input_json[\"y\"];\n    int result = add_ignore_y(x, y);\n    json output_json;\n    output_json[\"result\"] = result;\n    std::ofstream out_str(argv[2]);\n    out_str << output_json;\n    return 0;\n}\n",
     "opt_real_exe_wrapper": "extern \"C\" {\n#include \"placeholder.c\"\n}\n\n#include <fstream>\n#include <nlohmann/json.hpp>\nusing json = nlohmann::json;\n\nint main(int argc, char** argv) {\n    std::ifstream ifs(argv[1]);\n    json input_json = json::parse(ifs);\n    int x = input_json[\"x\"];\n    int result = add_ignore_y(x);\n    json output_json;\n    output_json[\"result\"] = result;\n    std::ofstream out_str(argv[2]);\n    out_str << output_json;\n    return 0;\n}\n",
     "opt_real_exe_wrapper_error": null,
-    "real_io_pairs": {
-      "input": [
-        {
-          "var": [
-            "x",
-            "y"
-          ],
-          "value": [
-            "5",
-            "99"
-          ]
-        }
-      ],
-      "output": [
-        {
-          "var": [
-            "result"
-          ],
-          "value": [
-            "6"
-          ]
-        }
-      ]
-    },
+    "real_io_pairs": [
+      {
+        "input": {
+          "x": 5,
+          "y": 99
+        },
+        "output": {
+          "result": 6
+        },
+        "dummy_funcs": "",
+        "dummy_funcs_seed": 0
+      }
+    ],
     "unused_param": true
   }
 ]

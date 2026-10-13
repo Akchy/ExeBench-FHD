@@ -83,7 +83,6 @@ All commands below are run from the repository root.
 │   ├── examples/                small runnable evaluation example with sample data
 │   ├── check_split_leakage.py   split reader (iter_split) and train/test overlap audit
 │   ├── regen_asm.py             static/inline stripping and dependency selection
-│   ├── exebench_eval.py         evaluation for the Hugging Face ExeBench format
 │   ├── exebenchplus_eval.py     evaluation on the released ExeBenchPlus records
 │   └── eval_utils.py
 └── tests/
@@ -148,7 +147,7 @@ Each script in `scripts/extract/` can also be run alone to compute one field
 
 ## Evaluation
 
-`scripts/exebench_eval.py` re-compiles and re-executes predicted C functions
+`scripts/exebenchplus_eval.py` re-compiles and re-executes predicted C functions
 against ExeBench's I/O pairs. `select_exe_wrapper` uses `opt_*_exe_wrapper`
 for records with `unused_param` set when the prediction comes from optimized
 assembly. A self-contained example with two records:
@@ -157,7 +156,7 @@ assembly. A self-contained example with two records:
 python -m scripts.examples.run_sample_eval
 ```
 
-For predictions on rows in the raw/release JSONL format:
+To evaluate a predictions file against a release split or a JSON list of rows:
 
 ```bash
 python -m scripts.exebenchplus_eval --predictions preds.json \

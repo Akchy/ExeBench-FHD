@@ -318,14 +318,13 @@ wrapper renamed its `_buffer` parameter to `static_buffer` in the JSON keys,
 and `i8086UncondJumpDS`, whose by-value struct parameter contains an array
 field.
 
-**Use in evaluation.** `scripts/exebench_eval.py::select_exe_wrapper(row,
+**Use in evaluation.** `scripts/exebenchplus_eval.py::select_exe_wrapper(row,
 opt_level, track)` returns `opt_{track}_exe_wrapper` when `unused_param` is
 true, the optimization level is not `O0` and the adapted wrapper is
 non-empty, and the original wrapper otherwise. A missing level is treated as
-`O0`. `exebench_validate_new` takes an `opt_level` argument or reads a
+`O0`. `exebenchplus_validate` takes an `opt_level` argument or reads a
 per-item `opt` field; with neither, it behaves as before.
-`scripts/exebenchplus_eval.py` does the same for the released ExeBenchPlus record format.
-`python -m scripts.examples.run_sample_eval` runs both paths on a two-record
+`python -m scripts.examples.run_sample_eval` runs the O0 ground-truth check and `exebenchplus_validate` on a two-record
 example.
 
 ## `no_return`

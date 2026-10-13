@@ -103,7 +103,7 @@ def test_process_record_preserves_exebench_native_asm_field_untouched(tmp_path, 
 
 
 def test_select_exe_wrappers_offers_reduced_and_full_form_above_o0():
-    from scripts.exebench_eval import select_exe_wrappers
+    from scripts.exebenchplus_eval import select_exe_wrappers
     row = {"real_exe_wrapper": "full", "opt_real_exe_wrapper": "reduced", "unused_param": True}
     assert select_exe_wrappers(row, "O2") == ["reduced", "full"]
     assert select_exe_wrappers(row, "O0") == ["full"]
