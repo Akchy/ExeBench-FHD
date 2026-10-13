@@ -324,7 +324,7 @@ true, the optimization level is not `O0` and the adapted wrapper is
 non-empty, and the original wrapper otherwise. A missing level is treated as
 `O0`. `exebench_validate_new` takes an `opt_level` argument or reads a
 per-item `opt` field; with neither, it behaves as before.
-`scripts/exebench_eval_raw.py` does the same for the raw record format.
+`scripts/exebenchplus_eval.py` does the same for the released ExeBenchPlus record format.
 `python -m scripts.examples.run_sample_eval` runs both paths on a two-record
 example.
 

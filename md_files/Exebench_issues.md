@@ -16,18 +16,41 @@ This document collects issues reported in the literature, then reports our
 measurements on the full dataset. The fields added to address them are
 described in [ExeBenchPlus.md](ExeBenchPlus.md).
 
+## The nine audited issues (P1-P9)
+
+Prevalence over all 6,564,549 functions and over `test_real` (2,134
+functions). P3 counts functions with a non-empty data section at `-O2` on at
+least one architecture. P4 excludes `main`, which is well defined without a
+`return`.
+
+| ID | Issue | Corpus count | Corpus % | `test_real` count | `test_real` % | Addressed by |
+|---|---|---:|---:|---:|---:|---|
+| P1 | Mixed int/float parameters | 95,573 | 1.46 | 245 | 11.48 | `func_call` |
+| P2 | Unused parameter | 496,244 | 7.56 | 158 | 7.40 | `unused_param`, `opt_*_exe_wrapper` |
+| P3 | Reads a data section (`-O2`, any arch) | 1,062,170 | 16.18 | 348 | 16.31 | `data_section` |
+| P4 | Non-void without return | 113,650 | 1.73 | 4 | 0.19 | `no_return` |
+| P5 | Dummy UDT dependency | 608,573 | 9.27 | 11 | 0.52 | `dummy_udt` |
+| P6 | `static`/`inline` definition | 2,383,779 | 36.31 | 613 | 28.73 | `objdump_asm` |
+| P7 | Function named `main` | 413,822 | 6.30 | 0 | 0.00 | regenerated assembly |
+| P8 | Trivial body | 1,827,693 | 27.84 | 585 | 27.41 | `trivial_function` |
+| P9 | Truncated definition | 41,099 | 0.63 | 0 | 0.00 | `truncated_funcs` |
+| | Any of P1-P9 | 4,659,378 | 70.98 | 1,307 | 61.25 | |
+
+Sections below are tagged with these IDs. Findings that are not one of
+P1-P9 (split sizes, non-standard C, train/test overlap) follow them.
+
 ## Issues reported in prior work
 
 | Issue | Reported by |
 |---|---|
 | I/O pairs could be generated for only ~15% of functions, and the test and validation sets are drawn from that subset (selection bias) | ExeBench; Idioms |
-| Compilation settings are not published; compiling in a standard way works for about half the samples (443K of 797K train, 2,621 of 5,000 test) | LLM4Decompile |
+| Compilation settings are not published; compiling in a standard way works for about half the samples (443K of 797K train, 2,621 of 5,000 test) | Prior work |
 | Much of the code is non-standard and needs `g++ -fpermissive` | QiMeng |
 | 32-bit builds conflict with 64-bit assumptions, e.g. `typedef unsigned long size_t;` | CodeInverter |
 | The executable subset is simple (mean cyclomatic complexity 2.1, Halstead difficulty 10.5) | ExeBench; Decompile-Bench |
 | Many programs are very short | QiMeng |
 | Missing header files and unexpanded macros cause compilation errors | ExeBench |
-| User-defined types are lost after compilation | LLM4Decompile |
+| User-defined types are lost after compilation | Prior work |
 | Synthetic type definitions are placeholders with a single `dummy` field | Idioms |
 | The Hugging Face viewer is disabled because loading needs a custom script | Hugging Face |
 
@@ -88,7 +111,7 @@ Body length, from an exact per-function line count:
 | `train_synth_rich_io` | 20.89 | 5 | 9.17 |
 | `train_not_compilable` | 11.89 | 15 | 49.95 |
 
-### Trivial functions
+### P8: Trivial functions
 
 About half of the evaluation functions contain no branching keyword. The
 problem is worst in `train_real_simple_io`: median body length 1 line, 32%
@@ -99,7 +122,7 @@ tail of very large functions. In the synthetic splits, most single-line bodies
 are a call or an assignment rather than a bare `return` (`test_synth`: 21.34%
 single-line, 1.18% return-only). Flagged by `trivial_function`.
 
-### Non-void functions without `return`
+### P4: Non-void functions without `return`
 
 195,297 functions (2.98%) declare a non-`void` return type but contain no
 `return` statement. 63.85% of all functions contain a `return`; most of the
@@ -119,9 +142,10 @@ rest are `void`.
 | `train_not_compilable` | 75,164 | 10.50% |
 
 These counts include some `main` functions, which are well defined without a
-`return`; the `no_return` field excludes them.
+`return`. The `no_return` field excludes them, leaving the 113,650 functions
+(1.73%; 4 in `test_real`) counted as P4 above.
 
-### Placeholder types and missing dependencies
+### P5: Placeholder types and missing dependencies
 
 4-16% of records with dependency text contain a `{int dummy;}` placeholder in
 place of a real type, including standard types (`struct sockaddr`, `in_addr`,
@@ -141,7 +165,7 @@ synthetic split and from the real evaluation splits, and most frequent in
 split has a consistent brace style (20-32% same-line, 55-73% next-line),
 and tabs appear in 15-24% of synthetic code and almost never in real code.
 
-### Truncated `func_def`
+### P9: Truncated `func_def`
 
 Classification described in [ExeBenchPlus.md](ExeBenchPlus.md#truncated_funcs):
 
@@ -166,26 +190,48 @@ evaluation splits. Of the 108 distinct missing types, `void` accounts for
 1,812 of the 2,352 `missing_non_int` records, followed by `char *` (85),
 `Bool` (43), `PNode *` and `double` (32 each).
 
-## Compilation and assembly
+## Parameters, data and optimized assembly (P1-P3, P6, P7)
+
+### P1: Mixed int/float parameters
+
+On x86-64, float and integer arguments use separate register files, so
+parameter order cannot always be recovered from the callee. 95,573 functions
+(1.46%) mix the two; they are 11.48% of `test_real`. Addressed by `func_call`.
+
+### P2: Unused parameters
+
+Unused parameters disappear from optimized assembly, so a correct
+decompilation can have fewer parameters than the reference, and ExeBench's
+fixed-arity test wrappers reject it. 496,244 functions (7.56%; 7.40% of
+`test_real`). Addressed by `unused_param` and `opt_*_exe_wrapper`. The
+ExeBenchPlus wrapper accepts a prediction that passes either the reduced
+(`opt_*_exe_wrapper`) or the full-signature (`*_exe_wrapper`) calling form.
+
+### P3: Referenced data
+
+String literals, globals and lookup tables used by the function are not in
+the record. 1,062,170 functions (16.18%; 16.31% of `test_real`) read a
+non-empty data section at `-O2` on at least one architecture. Addressed by
+`data_section`.
+
+### P6: `static`/`inline` definitions and empty optimized assembly
+
+2,383,779 functions (36.31%; 28.73% of `test_real`) are `static` or `inline`.
+About 22-24% of the Os/O3 assembly in every evaluation split contains only
+directives; 96.6% of these come from `static` functions, which GCC removes
+because nothing calls them. Addressed by `objdump_asm`.
+
+### P7: Functions named `main`
+
+413,822 functions (6.30%) are named `main`, including 15.5% of
+`train_real_compilable`; none are in `test_real`. A function named `main`
+collides with any driver `main` used to build it.
+
+### Other compilation notes
 
 - **Linking.** Building records as complete programs loses about 48-60% of the
   real-code splits, mainly to undefined references to sibling functions that
-  ExeBench did not capture, and partly to the `main` collision below.
-- **Functions named `main`.** 15.5% of `train_real_compilable` are named
-  `main`, which collides with any driver `main` (none in `test_real`).
-- **Empty optimized assembly.** About 22-24% of the Os/O3 assembly in every
-  evaluation split contains only directives; 96.6% of these come from
-  `static` functions, which GCC removes because nothing calls them. Addressed
-  by `objdump_asm`.
-- **Unused parameters.** Unused parameters disappear from optimized
-  assembly, so a correct decompilation can have fewer parameters than the
-  reference, and ExeBench's fixed-arity test wrappers reject it. Addressed by
-  `unused_param` and `opt_*_exe_wrapper`.
-- **Parameter order.** On x86-64, float and integer arguments use separate
-  register files, so parameter order cannot always be recovered from the
-  callee. Addressed by `func_call`.
-- **Referenced data.** String literals, globals and lookup tables used by the
-  function are not in the record. Addressed by `data_section`.
+  ExeBench did not capture, and partly to the `main` collision above.
 - **Dependency selection.** A content-empty `real_deps` still ends in a `#
   1` line marker, which makes naive fallbacks to `angha_deps` fail (see
   [ExeBenchPlus.md](ExeBenchPlus.md#building-a-translation-unit)).

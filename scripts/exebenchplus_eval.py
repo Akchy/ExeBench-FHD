@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Re-compile / re-execute evaluation of decompiled C predictions against rows
-in the raw ExeBench format (datasets_jsonl_v2/*.jsonl), where each io pair is
+"""ExeBenchPlus evaluation: re-compile / re-execute decompiled C predictions against rows
+in the released ExeBenchPlus format (datasets_jsonl_v2/*.jsonl), where each io pair is
 {"input": {...}, "output": {...}, "dummy_funcs": "...", ...} with native JSON
 values instead of the HF {var, value} lists used by scripts.exebench_eval.
 
@@ -10,7 +10,7 @@ the angha track), so a prediction is compiled once per distinct stub set.
 rows get task_id "<file stem>:<line number>".
 
 Usage:
-    python3 -m scripts.exebench_eval_raw --predictions preds.json \\
+    python3 -m scripts.exebenchplus_eval --predictions preds.json \\
         --dataset test_real_x86-64_O2.json --model-name a6/gpt --opt O2 --workers 16
 """
 import argparse
@@ -21,7 +21,7 @@ from pathlib import Path
 
 from scripts.eval_utils import atomic_write_json
 from scripts.exebench import CompileError, Exebench_Wrapper, diff_io
-from scripts.exebench_eval import _clean_signature, extract_function_headers_exeb, log_output, select_exe_wrapper
+from scripts.exebench_eval import _clean_signature, extract_function_headers_exeb, log_output, select_exe_wrappers
 
 TRACKS = ('real', 'angha')
 
@@ -73,44 +73,46 @@ def _process_prediction(item, idx, preds, row, track, debug, opt_level=None):
         io_pairs = row[f'{track}_io_pairs']
         deps = row.get(f'{track}_deps') or ''
         pred_deps = preds.get('pred_deps', '')
-        cpp_wrapper = select_exe_wrapper(row, opt_level=opt_level, track=track)
-
-        # One executable per distinct dummy_funcs stub set.
-        wrappers = {}
-        for pair in io_pairs:
-            dummy_funcs = pair.get('dummy_funcs') or ''
-            if dummy_funcs in wrappers:
-                continue
-            try:
-                wrappers[dummy_funcs] = Exebench_Wrapper(
-                    c_deps=deps + '\n' + dummy_funcs + '\n' + pred_deps + '\n' + code + '\n',
-                    func_c_signature=clean_signature,
-                    cpp_wrapper=cpp_wrapper)
-            except CompileError as e:
-                logs.append(f'Compile failed {tag}: {e}')
-                return logs
+        cpp_wrappers = select_exe_wrappers(row, opt_level=opt_level, track=track)
     except Exception as e:
         logs.append(f'Failed before compile {tag}: {e}')
         return logs
 
-    preds['re-compile'] = True
+    # ExeBenchPlus's wrapper: correct if it passes either calling form (reduced or full).
+    for cpp_wrapper in cpp_wrappers:
+        # One executable per distinct dummy_funcs stub set.
+        wrappers = {}
+        try:
+            for pair in io_pairs:
+                dummy_funcs = pair.get('dummy_funcs') or ''
+                if dummy_funcs not in wrappers:
+                    wrappers[dummy_funcs] = Exebench_Wrapper(
+                        c_deps=deps + '\n' + dummy_funcs + '\n' + pred_deps + '\n' + code + '\n',
+                        func_c_signature=clean_signature,
+                        cpp_wrapper=cpp_wrapper)
+        except CompileError as e:
+            logs.append(f'Compile failed {tag}: {e}')
+            continue
 
-    try:
-        for io_idx, pair in enumerate(io_pairs):
-            observed_output = wrappers[pair.get('dummy_funcs') or ''](pair['input'])
-            if debug:
-                print(f"Debug\nI: {pair['input']}\nO: {observed_output}\nE: {pair['output']}\n")
-            if not diff_io(observed_output=observed_output, expected_output=pair['output']):
-                logs.append(f'Test case failed {tag} (io pair {io_idx})')
+        preds['re-compile'] = True
+        try:
+            for io_idx, pair in enumerate(io_pairs):
+                observed_output = wrappers[pair.get('dummy_funcs') or ''](pair['input'])
+                if debug:
+                    print(f"Debug\nI: {pair['input']}\nO: {observed_output}\nE: {pair['output']}\n")
+                if not diff_io(observed_output=observed_output, expected_output=pair['output']):
+                    logs.append(f'Test case failed {tag} (io pair {io_idx})')
+                    break
+            else:
+                preds['re-execute'] = True
+                logs.append(f'Test case passed {tag} ({len(io_pairs)} io pairs)')
                 return logs
-        preds['re-execute'] = True
-        logs.append(f'Test case passed {tag} ({len(io_pairs)} io pairs)')
-    except Exception as e:
-        logs.append(f'Execution failed {tag}: {e}')
+        except Exception as e:
+            logs.append(f'Execution failed {tag}: {e}')
     return logs
 
 
-def exebench_validate_raw(model_name, file_path, exeb_dataset, parallel_workers=20, debug=False, resume=True,
+def exebenchplus_validate(model_name, file_path, exeb_dataset, parallel_workers=20, debug=False, resume=True,
                           flush_every=10, opt_level=None, track='auto'):
     """Raw-format counterpart of exebench_eval.exebench_validate_new.
 
@@ -193,7 +195,7 @@ def main():
     ap.add_argument('--debug', action='store_true')
     args = ap.parse_args()
 
-    exebench_validate_raw(args.model_name, args.predictions, args.dataset, parallel_workers=args.workers,
+    exebenchplus_validate(args.model_name, args.predictions, args.dataset, parallel_workers=args.workers,
                           debug=args.debug, resume=not args.no_resume, opt_level=args.opt, track=args.track)
 
     items = json.loads(Path(args.predictions).read_text())

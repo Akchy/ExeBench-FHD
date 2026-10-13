@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A.6 experiment: decompile each evaluable function of a split with an LLM, once from the assembly
 alone (`asm_only`) and once with `data_section` and `func_call` added (`asm_context`), then
-re-compile / re-execute the predictions. unused_param functions are dropped above O0. Writes
+re-compile / re-execute the predictions with ExeBenchPlus's wrapper (reduced or full signature). Writes
 <out-dir>/{asm_only,asm_context}.json, results.log and per_function.json; reruns resume.
 Needs OPENAI_API_KEY.
 
@@ -21,8 +21,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 from scripts.eval_utils import atomic_write_json
-from scripts.exebench_eval import _NO_DROP_OPT_LEVELS
-from scripts.exebench_eval_raw import exebench_validate_raw
+from scripts.exebenchplus_eval import exebenchplus_validate
 from scripts.experiments.a6_filter_subsets import DATASET_DIR, is_evaluable
 from scripts.extract.extract_data_sections import data_section_by_arch
 from scripts.extract.extract_func_call import func_call_by_arch
@@ -256,10 +255,10 @@ def main():
     # Without a key, only cached predictions can be used (e.g. with --rescore).
     client = OpenAI(api_key=api_key, max_retries=3, timeout=600) if api_key else None
 
-    # task_id = <split>:<line number>, matching exebench_validate_raw's naming for a .jsonl dataset.
-    # Above O0 unused_param rows are scored against opt_real_exe_wrapper, which rejects a
-    # prediction that recovers the full signature from func_call.
-    drop_unused = args.opt.upper() not in _NO_DROP_OPT_LEVELS
+    # task_id = <split>:<line number>, matching exebenchplus_validate's naming for a .jsonl dataset.
+    # unused_param rows are scored with ExeBenchPlus's wrapper (passes the reduced or the full
+    # signature), so a prediction that recovers the full signature from func_call is not rejected.
+    drop_unused = False
     rows, skipped, dropped_unused = [], 0, 0
     with open(args.dataset) as f:
         for line_no, line in enumerate(f):
@@ -287,7 +286,7 @@ def main():
                 args.workers, args.reasoning_effort, show=args.show)
         if not args.skip_eval:
             # model_name makes the evaluator log to <out-dir>/exebench.log.
-            exebench_validate_raw(
+            exebenchplus_validate(
                 model_name=str(out_dir.relative_to('output_files')),
                 file_path=str(pred_path),
                 exeb_dataset=args.dataset,

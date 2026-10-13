@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from scripts import exebench_eval_raw as er
+from scripts import exebenchplus_eval as er
 
 
 def test_pick_track_explicit_is_returned_as_is():
@@ -44,4 +44,4 @@ def test_invalid_track_raises(tmp_path):
     p = tmp_path / "preds.json"
     p.write_text("[]")
     with pytest.raises(ValueError):
-        er.exebench_validate_raw("m", str(p), str(p), track="synth")
+        er.exebenchplus_validate("m", str(p), str(p), track="synth")

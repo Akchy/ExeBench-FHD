@@ -33,6 +33,19 @@ def select_exe_wrapper(row, opt_level, track='real'):
     return wrapper
 
 
+def select_exe_wrappers(row, opt_level, track='real'):
+    """ExeBenchPlus's wrapper: the candidate wrappers for `track` at `opt_level`, in order.
+
+    Above O0 a row with unused_param set has two valid calling forms, the arity-reduced
+    opt_{track}_exe_wrapper (what the optimized code shows) and the full-signature
+    {track}_exe_wrapper (what a caller passes). A prediction is correct if it passes either.
+    Every other row has just the one wrapper.
+    """
+    full = row.get(f'{track}_exe_wrapper', '')
+    reduced = select_exe_wrapper(row, opt_level, track)
+    return [reduced] if reduced == full else [reduced, full]
+
+
 def log_output(msg, f):
     print(msg)
     f.write(f"{msg}\n")
@@ -157,43 +170,43 @@ def _process_prediction(item, idx, preds, row, debug, opt_level=None):
 
         clean_signature = _clean_signature(func_header)
         pred_deps = preds.get('pred_deps', '')
-        cpp_wrapper = select_exe_wrapper(row, opt_level=opt_level, track='real')
-
-        try:
-            real_wrapper = Exebench_Wrapper(c_deps=row.get('real_deps', '') + '\n' + pred_deps + '\n' + code + '\n',
-                                            func_c_signature=clean_signature,
-                                            cpp_wrapper=cpp_wrapper)
-        except CompileError as e:
-            preds['re-compile'] = False
-            preds['re-execute'] = False
-            logs.append(f'Compile failed {item.get("task_id")} {item.get("type","")} {idx}: {e}')
-            return logs
-
-        preds['re-compile'] = True
-
         io_inputs = row['real_io_pairs']['input']
         io_outputs = row['real_io_pairs']['output']
-        try:
-            all_pass = True
-            for io_idx in range(len(io_inputs)):
-                observed_output = real_wrapper(exebench_dict_to_dict(io_inputs[io_idx]))
+        base = row.get('real_deps', '') + '\n' + pred_deps + '\n' + code + '\n'
 
-                if debug:
-                    print(f"Debug\nR: {io_inputs[io_idx]}\n{observed_output}\n\n")
+        # ExeBenchPlus's wrapper: correct if it passes either calling form (reduced or full).
+        preds['re-compile'] = False
+        preds['re-execute'] = False
+        for cpp_wrapper in select_exe_wrappers(row, opt_level=opt_level, track='real'):
+            try:
+                real_wrapper = Exebench_Wrapper(c_deps=base, func_c_signature=clean_signature,
+                                                cpp_wrapper=cpp_wrapper)
+            except CompileError as e:
+                logs.append(f'Compile failed {item.get("task_id")} {item.get("type","")} {idx}: {e}')
+                continue
 
-                if not diff_io(observed_output=observed_output,
-                               expected_output=exebench_dict_to_dict(io_outputs[io_idx])):
-                    all_pass = False
-                    break
+            preds['re-compile'] = True
+            try:
+                all_pass = True
+                for io_idx in range(len(io_inputs)):
+                    observed_output = real_wrapper(exebench_dict_to_dict(io_inputs[io_idx]))
 
-            preds['re-execute'] = all_pass
+                    if debug:
+                        print(f"Debug\nR: {io_inputs[io_idx]}\n{observed_output}\n\n")
+
+                    if not diff_io(observed_output=observed_output,
+                                   expected_output=exebench_dict_to_dict(io_outputs[io_idx])):
+                        all_pass = False
+                        break
+            except Exception as e:
+                logs.append(f'Execution failed {item.get("task_id")} {item.get("type","") } {idx}: {e}')
+                continue
+
             if all_pass:
+                preds['re-execute'] = True
                 logs.append(f'Test case passed {item.get("task_id")} {item.get("type","")} {idx} ({len(io_inputs)} io pairs)')
-            else:
-                logs.append(f'Test case failed {item.get("task_id")} {item.get("type","")} {idx} (io pair {io_idx})')
-        except Exception as e:
-            preds['re-execute'] = False
-            logs.append(f'Execution failed {item.get("task_id")} {item.get("type","") } {idx}: {e}')
+                break
+            logs.append(f'Test case failed {item.get("task_id")} {item.get("type","")} {idx} (io pair {io_idx})')
 
     except Exception as e:
         preds['re-compile'] = False

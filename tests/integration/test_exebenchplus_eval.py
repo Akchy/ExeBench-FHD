@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from scripts import exebench_eval_raw as er
+from scripts import exebenchplus_eval as er
 from tests.conftest import requires_gxx
 
 pytestmark = [pytest.mark.slow, requires_gxx]
@@ -59,7 +59,7 @@ def _run(tmp_path, row, pred_func, **kw):
     item = {"task_id": "t1", "predicted_c_funcs": [{"pred_func": pred_func}]}
     dataset_path = _write(tmp_path, "dataset.json", [item])
     exeb_path = _write(tmp_path, "exeb.json", [row])
-    er.exebench_validate_raw("mymodel", dataset_path, exeb_path, parallel_workers=1, resume=False, **kw)
+    er.exebenchplus_validate("mymodel", dataset_path, exeb_path, parallel_workers=1, resume=False, **kw)
     return json.loads(open(dataset_path).read())[0]
 
 
@@ -142,7 +142,7 @@ def test_jsonl_dataset_uses_stem_and_line_number_task_ids(tmp_path):
     item = {"task_id": "test_real:1", "predicted_c_funcs": [{"pred_func": _ADD_ONE}]}
     dataset_path = _write(tmp_path, "dataset.json", [item])
 
-    er.exebench_validate_raw("mymodel", dataset_path, str(tmp_path / "test_real.jsonl"),
+    er.exebenchplus_validate("mymodel", dataset_path, str(tmp_path / "test_real.jsonl"),
                              parallel_workers=1, resume=False)
 
     pred = json.loads(open(dataset_path).read())[0]["predicted_c_funcs"][0]
@@ -154,7 +154,7 @@ def test_resume_skips_already_validated_predictions(tmp_path):
     dataset_path = _write(tmp_path, "dataset.json", [item])
     exeb_path = _write(tmp_path, "exeb.json", [_row(real_io_pairs=[_pair(3, 4)])])
 
-    er.exebench_validate_raw("mymodel", dataset_path, exeb_path, parallel_workers=1, resume=True)
+    er.exebenchplus_validate("mymodel", dataset_path, exeb_path, parallel_workers=1, resume=True)
 
     pred = json.loads(open(dataset_path).read())[0]["predicted_c_funcs"][0]
     assert pred["re-compile"] is False

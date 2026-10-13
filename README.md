@@ -84,7 +84,7 @@ All commands below are run from the repository root.
 │   ├── check_split_leakage.py   split reader (iter_split) and train/test overlap audit
 │   ├── regen_asm.py             static/inline stripping and dependency selection
 │   ├── exebench_eval.py         evaluation for the Hugging Face ExeBench format
-│   ├── exebench_eval_raw.py     evaluation for the raw/release record format
+│   ├── exebenchplus_eval.py     evaluation on the released ExeBenchPlus records
 │   └── eval_utils.py
 └── tests/
     ├── unit/
@@ -160,12 +160,41 @@ python -m scripts.examples.run_sample_eval
 For predictions on rows in the raw/release JSONL format:
 
 ```bash
-python -m scripts.exebench_eval_raw --predictions preds.json \
+python -m scripts.exebenchplus_eval --predictions preds.json \
     --dataset test_real.jsonl --model-name my_model --opt O2 --workers 16
 ```
 
-The predictions file is updated in place with re-compile and re-execute
-results; logs go to `output_files/<model-name>/`.
+`--predictions` is a JSON list with one item per function:
+
+```json
+[
+  {
+    "task_id": "test_real:0",
+    "opt": "O2",
+    "predicted_c_funcs": [
+      {"pred_func": "int func0(const unsigned char *pkt) { return -1; }"},
+      {"pred_func": "int func0(void) { return -1; }", "pred_deps": ""}
+    ]
+  }
+]
+```
+
+- `task_id` is `<file stem>:<line number>` of the row in `--dataset`, counting
+  from 0. `test_real:0` is the first line of `test_real.jsonl`.
+- `opt` (`O0`/`O1`/`O2`/`O3`/`Os`) selects the wrapper. `--opt` overrides it
+  for every item, and an item with neither is treated as `O0`.
+- `predicted_c_funcs` holds one or more candidates. `pred_func` is the C
+  function; the function name may be `func0`, which is replaced by the row's
+  real name. `pred_deps` (optional) is extra C (types, helpers) compiled
+  before it.
+- For a function with an unused parameter, a candidate is correct if it
+  passes either the reduced (`opt_*_exe_wrapper`) or the full-signature
+  (`*_exe_wrapper`) form.
+
+The predictions file is updated in place: each candidate gains
+`"re-compile"` and `"re-execute"` booleans (`null` when the row has no I/O
+pairs). Existing results are skipped on a rerun unless `--no-resume` is
+given. Logs go to `output_files/<model-name>/`.
 
 ## Audit
 
