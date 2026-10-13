@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A.6 experiment: decompile each evaluable function of a split with an LLM, once from the assembly
 alone (`asm_only`) and once with `data_section` and `func_call` added (`asm_context`), then
-re-compile / re-execute the predictions with ExeBenchPlus's wrapper (reduced or full signature). Writes
+re-compile / re-execute the predictions with ExeBench-FHD's wrapper (reduced or full signature). Writes
 <out-dir>/{asm_only,asm_context}.json, results.log and per_function.json; reruns resume.
 Needs OPENAI_API_KEY.
 
@@ -21,7 +21,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 from scripts.eval_utils import atomic_write_json
-from scripts.exebenchplus_eval import exebenchplus_validate
+from scripts.exebench_fhd_eval import exebench_fhd_validate
 from scripts.experiments.a6_filter_subsets import DATASET_DIR, is_evaluable
 from scripts.extract.extract_data_sections import data_section_by_arch
 from scripts.extract.extract_func_call import func_call_by_arch
@@ -255,8 +255,8 @@ def main():
     # Without a key, only cached predictions can be used (e.g. with --rescore).
     client = OpenAI(api_key=api_key, max_retries=3, timeout=600) if api_key else None
 
-    # task_id = <split>:<line number>, matching exebenchplus_validate's naming for a .jsonl dataset.
-    # unused_param rows are scored with ExeBenchPlus's wrapper (passes the reduced or the full
+    # task_id = <split>:<line number>, matching exebench_fhd_validate's naming for a .jsonl dataset.
+    # unused_param rows are scored with ExeBench-FHD's wrapper (passes the reduced or the full
     # signature), so a prediction that recovers the full signature from func_call is not rejected.
     drop_unused = False
     rows, skipped, dropped_unused = [], 0, 0
@@ -286,7 +286,7 @@ def main():
                 args.workers, args.reasoning_effort, show=args.show)
         if not args.skip_eval:
             # model_name makes the evaluator log to <out-dir>/exebench.log.
-            exebenchplus_validate(
+            exebench_fhd_validate(
                 model_name=str(out_dir.relative_to('output_files')),
                 file_path=str(pred_path),
                 exeb_dataset=args.dataset,

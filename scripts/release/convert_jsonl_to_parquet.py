@@ -19,7 +19,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-# Column order: ExeBench's 23 fields, then the 16 ExebenchPlus adds.
+# Column order: ExeBench's 23 fields, then the 16 ExeBench-FHD adds.
 EXEBENCH_FIELDS = [
     "path", "func_def", "func_head", "func_head_types", "fname", "signature", "doc",
     "angha_error", "real_error", "asm", "angha_deps", "real_deps",
@@ -27,14 +27,14 @@ EXEBENCH_FIELDS = [
     "angha_io_error", "real_io_error", "angha_io_pairs_are_trivial", "real_io_pairs_are_trivial",
     "angha_iospec", "real_iospec", "ref",
 ]
-EXEBENCHPLUS_FIELDS = [
+EXEBENCH_FHD_FIELDS = [
     "objdump_asm", "objdump_asm_errors", "func_call", "func_call_errors", "func_call_skip_reason",
     "data_section", "data_section_errors",
     "opt_real_exe_wrapper", "opt_real_exe_wrapper_error",
     "opt_angha_exe_wrapper", "opt_angha_exe_wrapper_error",
     "trivial_function", "no_return", "unused_param", "truncated_funcs", "dummy_udt",
 ]
-FIELDS = EXEBENCH_FIELDS + EXEBENCHPLUS_FIELDS
+FIELDS = EXEBENCH_FIELDS + EXEBENCH_FHD_FIELDS
 
 JSON_COLUMNS = [
     "asm", "angha_io_pairs", "real_io_pairs", "angha_iospec", "real_iospec",
@@ -58,7 +58,7 @@ def _arrow_type(field):
 
 SCHEMA = pa.schema(
     [(f, _arrow_type(f)) for f in FIELDS],
-    metadata={"exebenchplus": json.dumps({"json_columns": JSON_COLUMNS})},
+    metadata={"exebench_fhd": json.dumps({"json_columns": JSON_COLUMNS})},
 )
 
 _SPLIT_RE = re.compile(r"^\w+$")

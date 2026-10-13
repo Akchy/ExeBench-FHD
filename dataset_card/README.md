@@ -1,6 +1,6 @@
 ---
 license: mit
-pretty_name: ExeBenchPlus
+pretty_name: ExeBench-FHD
 language:
 - code
 task_categories:
@@ -38,9 +38,9 @@ configs:
     path: test_real-*.parquet
 ---
 
-# ExeBenchPlus
+# ExeBench-FHD
 
-ExeBenchPlus is an audited and extended version of
+ExeBench-FHD is an audited and extended version of
 [ExeBench](https://huggingface.co/datasets/jordiae/exebench), a dataset of
 executable C functions used to train and evaluate neural decompilers. Auditing
 all 6.56M functions in ExeBench's ten splits turned up nine data-quality
@@ -55,13 +55,13 @@ assembly alone:
 - P3, data sections: constants live in `.rodata`, `.data` or `.bss`, and the
   function's code only refers to them by address.
 
-ExeBenchPlus keeps the 16 columns that `load_dataset("jordiae/exebench")`
+ExeBench-FHD keeps the 16 columns that `load_dataset("jordiae/exebench")`
 returns, with the same names, types and values, and adds 16: the assembly
 of a call to the function (`func_call`, P1), wrappers that test a
 reduced-arity decompilation (`opt_*_exe_wrapper`, P2), data-section contents
 (`data_section`, P3), disassembly of the linked binary on four architectures
 at five optimization levels (`objdump_asm`), and five warning flags.
-Problematic records are flagged rather than removed, so ExeBenchPlus works as a
+Problematic records are flagged rather than removed, so ExeBench-FHD works as a
 drop-in replacement for ExeBench: code written against `jordiae/exebench`
 runs unchanged, and users choose what to filter.
 
@@ -81,7 +81,7 @@ runs unchanged, and users choose what to filter.
 | `test_real` | 2,134 |
 | **Total** | **6,564,549** |
 
-The splits and their rows are ExeBench's own; ExeBenchPlus only adds columns.
+The splits and their rows are ExeBench's own; ExeBench-FHD only adds columns.
 
 ## Loading
 
@@ -96,7 +96,7 @@ train = load_dataset("{{repo_id}}", split="train_real_compilable", streaming=Tru
 ```
 
 All columns are typed Arrow columns; no decoding is needed for the
-ExeBenchPlus fields:
+ExeBench-FHD fields:
 
 ```python
 row = test[0]
@@ -125,7 +125,7 @@ when it does not apply or could not be produced, and the companion `*_errors`
 field explains why. `func_call` and `func_call_errors` are `null` as a whole
 when no call site was generated (see `func_call_skip_reason`).
 
-### Added by ExeBenchPlus (16)
+### Added by ExeBench-FHD (16)
 
 | Field | Type | Description |
 |---|---|---|
@@ -172,14 +172,14 @@ fields use synthesized ones. (`opt_angha_exe_wrapper*` keeps the raw ExeBench
 
 ## Licensing
 
-ExeBenchPlus follows ExeBench's licensing. All C functions keep the original
+ExeBench-FHD follows ExeBench's licensing. All C functions keep the original
 license of their GitHub repository (identified by `path` and `ref`). The fields
-ExeBenchPlus adds are released under the MIT license, as are ExeBench's own
+ExeBench-FHD adds are released under the MIT license, as are ExeBench's own
 contributions. The code that produces them is released under Apache-2.0.
 
 ## Citation
 
-ExeBenchPlus is under anonymous review; its citation will be added here.
+ExeBench-FHD is under anonymous review; its citation will be added here.
 Please also cite ExeBench:
 
 ```bibtex

@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""Export ExebenchPlus JSONL splits as Parquet in ExeBench's Hugging Face schema.
+"""Export ExeBench-FHD JSONL splits as Parquet in ExeBench's Hugging Face schema.
 
 Why this exists
 ----------------
-ExebenchPlus JSONL keeps ExeBench's *raw* release layout (the `.jsonl.zst` rows inside
+ExeBench-FHD JSONL keeps ExeBench's *raw* release layout (the `.jsonl.zst` rows inside
 the HF tarballs). Most ExeBench users never see that layout: they call
 `load_dataset('jordiae/exebench', split=...)`, whose loading script (`exebench.py`)
 reshapes every row. Code written against that view breaks on the raw layout.
 
 This script reproduces the loader's transformation exactly (`to_hf_row` mirrors
-`ExeBench._fixes` + `ExeBench._generate_examples`) and appends the 16 ExebenchPlus
+`ExeBench._fixes` + `ExeBench._generate_examples`) and appends the 16 ExeBench-FHD
 columns, so code written against the HF ExeBench view runs unchanged:
   - `angha_{deps,io_pairs,exe_wrapper,iospec}` -> `synth_*`
   - `asm` dict -> Sequence({target, code}) with `code` = `func_asm` only
   - io_pairs `input`/`output` -> Sequence({var, value}) with `value` JSON-encoded
   - `real_iospec` / `synth_iospec` -> JSON strings
   - `doc`, `*_error`, `*_io_error`, `*_io_pairs_are_trivial`, `pre_asm`/`post_asm` dropped
-The ExebenchPlus columns have fixed inner keys (arch x opt level), so they are stored
+The ExeBench-FHD columns have fixed inner keys (arch x opt level), so they are stored
 as native typed structs rather than JSON strings. `objdump_asm`, `data_section` and
 `func_call` and their error columns are all [arch][level]. In the JSONL,
 `func_call_errors[arch]` is collapsed to a single value when every level has the same
@@ -93,7 +93,7 @@ OPT_LEVELS = ["O0", "O1", "O2", "O3", "Os"]
 
 _PER_ARCH_OPT = {a: {o: datasets.Value("string") for o in OPT_LEVELS} for a in ARCHES}
 
-EPLUS_FEATURES = {
+EXEBENCH_FHD_FEATURES = {
     "objdump_asm": _PER_ARCH_OPT,
     "objdump_asm_errors": _PER_ARCH_OPT,
     "func_call": _PER_ARCH_OPT,
@@ -114,7 +114,7 @@ EPLUS_FEATURES = {
 _PER_ARCH_OPT_FIELDS = {"objdump_asm", "objdump_asm_errors", "func_call", "func_call_errors",
                         "data_section", "data_section_errors"}
 
-FEATURES = datasets.Features({**HF_FEATURES, **EPLUS_FEATURES})
+FEATURES = datasets.Features({**HF_FEATURES, **EXEBENCH_FHD_FEATURES})
 
 
 # --------------------------------------------------------------------------------------
@@ -139,10 +139,10 @@ def _expand_collapsed_levels(per_arch):
 
 
 def to_hf_row(row: dict) -> dict:
-    """Map one ExebenchPlus JSONL row to the HF ExeBench view plus the EPlus columns.
+    """Map one ExeBench-FHD JSONL row to the HF ExeBench view plus the ExeBench-FHD columns.
 
     Mirrors ExeBench._fixes() then the io_pairs/iospec step of _generate_examples().
-    Raises ValueError if an EPlus struct field carries unexpected keys, rather than
+    Raises ValueError if an ExeBench-FHD struct field carries unexpected keys, rather than
     silently dropping data.
     """
     data = dict(row)
@@ -176,7 +176,7 @@ def to_hf_row(row: dict) -> dict:
     data["synth_iospec"] = json.dumps(data["synth_iospec"])
     data["real_iospec"] = json.dumps(data["real_iospec"])
 
-    # --- ExebenchPlus columns ---
+    # --- ExeBench-FHD columns ---
     data["func_call_errors"] = _expand_collapsed_levels(data.get("func_call_errors"))
     for name in _PER_ARCH_OPT_FIELDS:
         value = data.get(name)

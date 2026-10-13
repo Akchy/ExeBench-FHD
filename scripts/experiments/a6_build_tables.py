@@ -10,7 +10,7 @@ import concurrent.futures
 import json
 import math
 
-from scripts.exebenchplus_eval import _process_prediction
+from scripts.exebench_fhd_eval import _process_prediction
 from scripts.experiments.a6_filter_subsets import is_evaluable
 from scripts.extract.extract_data_sections import data_section_by_arch
 from scripts.survey.survey_mixed_arg_order import has_mixed_arg_order
@@ -78,7 +78,7 @@ def rescore_plain_wrapper(preds, rows, ids, workers):
 
 
 def score_unused_param(stored, plain, ids):
-    """Rates against the reduced form, the full form and either (= ExeBenchPlus's wrapper), with McNemar tests."""
+    """Rates against the reduced form, the full form and either (= ExeBench-FHD's wrapper), with McNemar tests."""
     def pct(s):
         return round(100 * sum(s.values()) / (len(ids) or 1), 1)
 
@@ -94,7 +94,7 @@ def score_unused_param(stored, plain, ids):
         either = {c: {t: red[c][t] or full[c][t] for t in ids} for c in CONDITIONS}
         out[metric] = dict(
             reduced=(pct(red['asm_only']), pct(red['asm_context'])),
-            exebenchplus=(pct(either['asm_only']), pct(either['asm_context'])),
+            exebench_fhd=(pct(either['asm_only']), pct(either['asm_context'])),
             full=(pct(full['asm_only']), pct(full['asm_context'])),
             either=(pct(either['asm_only']), pct(either['asm_context'])),
             mc_red_vs_full=mc(red['asm_only'], full['asm_context']),
@@ -129,7 +129,7 @@ def compute(workers):
                   % mcnemar(stored, ids))
         plain = rescore_plain_wrapper(preds, rows, unused, workers)
         tables['unused_plain'][arch] = (len(unused), rates(plain, unused))
-        # ExeBenchPlus's wrapper: a prediction counts if it passes either the reduced or the full form.
+        # ExeBench-FHD's wrapper: a prediction counts if it passes either the reduced or the full form.
         either = {c: {t: {k: bool(stored[c][t][k]) or bool(plain[c][t][k]) for k in METRICS} for t in unused}
                   for c in CONDITIONS}
         tables['unused_either'][arch] = (len(unused), rates(either, unused))
@@ -179,7 +179,7 @@ def to_tex(t):
 
     unused = []
     for a in ARCHS:
-        unused.append(fmt_row(f'{a} & ExeBenchPlus', *t['unused_either'][a]))
+        unused.append(fmt_row(f'{a} & ExeBench-FHD', *t['unused_either'][a]))
         unused.append(fmt_row(' & reduced only', *t['unused_opt'][a]))
         unused.append(fmt_row(' & full only', *t['unused_plain'][a]))
         if a != ARCHS[-1]:
@@ -211,7 +211,7 @@ def to_tex(t):
               'tab:a6-func-call'),
         table(unused,
               r'Functions with a parameter the \texttt{-O2} code never uses, scored against '
-              r'the ExeBenchPlus wrapper, which accepts either calling form: the reduced one '
+              r'the ExeBench-FHD wrapper, which accepts either calling form: the reduced one '
               r'(\texttt{opt\_real\_exe\_wrapper}, unused parameters removed from the call) or the full '
               r'signature (\texttt{real\_exe\_wrapper}). The last two rows per architecture score each form '
               r'alone. With context the model recovers the original signature from \texttt{func\_call}, '

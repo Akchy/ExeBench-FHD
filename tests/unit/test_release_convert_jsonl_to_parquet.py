@@ -47,12 +47,12 @@ def read_split(out_dir, split):
     return [cv.decode_row(row) for s in shards for row in pq.read_table(s).to_pylist()]
 
 
-def test_schema_has_39_fields_in_exebench_then_exebenchplus_order():
-    assert len(cv.EXEBENCH_FIELDS) == 23 and len(cv.EXEBENCHPLUS_FIELDS) == 16
+def test_schema_has_39_fields_in_exebench_then_exebench_fhd_order():
+    assert len(cv.EXEBENCH_FIELDS) == 23 and len(cv.EXEBENCH_FHD_FIELDS) == 16
     assert len(set(cv.FIELDS)) == 39
     assert cv.SCHEMA.names == cv.FIELDS
     assert set(cv.JSON_COLUMNS) | set(cv.BOOL_COLUMNS) | set(cv.LIST_COLUMNS) <= set(cv.FIELDS)
-    assert json.loads(cv.SCHEMA.metadata[b"exebenchplus"])["json_columns"] == cv.JSON_COLUMNS
+    assert json.loads(cv.SCHEMA.metadata[b"exebench_fhd"])["json_columns"] == cv.JSON_COLUMNS
 
 
 def test_encode_decode_round_trip():
@@ -113,7 +113,7 @@ def test_main_converts_multi_chunk_split_in_order(tmp_path):
 
 
 def test_verify_accepts_source_with_different_key_order(tmp_path):
-    # The real JSONL orders the ExebenchPlus fields differently from FIELDS.
+    # The real JSONL orders the ExeBench-FHD fields differently from FIELDS.
     rec = make_full_record()
     shuffled = {k: rec[k] for k in reversed(list(rec))}
     src, out = tmp_path / "in", tmp_path / "out"

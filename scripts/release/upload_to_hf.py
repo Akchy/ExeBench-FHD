@@ -3,7 +3,7 @@
 the card's splits against the shards. `{{repo_id}}` in the card becomes --repo-id. Resumable; needs
 `hf auth login` or HF_TOKEN.
 
-    python -m scripts.release.upload_to_hf --repo-id <user-or-org>/ExeBenchPlus \\
+    python -m scripts.release.upload_to_hf --repo-id <user-or-org>/ExeBench-FHD \\
         --data-dir datasets_hf_parquet [--card dataset_card/README.md] [--private]
     python -m scripts.release.upload_to_hf --repo-id <...> --card-only
 """

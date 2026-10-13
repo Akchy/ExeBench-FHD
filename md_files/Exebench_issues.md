@@ -14,7 +14,7 @@ pairs.
 
 This document collects issues reported in the literature, then reports our
 measurements on the full dataset. The fields added to address them are
-described in [ExeBenchPlus.md](ExeBenchPlus.md).
+described in [ExeBench-FHD.md](ExeBench-FHD.md).
 
 ## The nine audited issues (P1-P9)
 
@@ -167,7 +167,7 @@ and tabs appear in 15-24% of synthetic code and almost never in real code.
 
 ### P9: Truncated `func_def`
 
-Classification described in [ExeBenchPlus.md](ExeBenchPlus.md#truncated_funcs):
+Classification described in [ExeBench-FHD.md](ExeBench-FHD.md#truncated_funcs):
 
 | class | records | % of corpus |
 |---|---:|---:|
@@ -204,7 +204,7 @@ Unused parameters disappear from optimized assembly, so a correct
 decompilation can have fewer parameters than the reference, and ExeBench's
 fixed-arity test wrappers reject it. 496,244 functions (7.56%; 7.40% of
 `test_real`). Addressed by `unused_param` and `opt_*_exe_wrapper`. The
-ExeBenchPlus wrapper accepts a prediction that passes either the reduced
+ExeBench-FHD wrapper accepts a prediction that passes either the reduced
 (`opt_*_exe_wrapper`) or the full-signature (`*_exe_wrapper`) calling form.
 
 ### P3: Referenced data
@@ -234,7 +234,7 @@ collides with any driver `main` used to build it.
   ExeBench did not capture, and partly to the `main` collision above.
 - **Dependency selection.** A content-empty `real_deps` still ends in a `#
   1` line marker, which makes naive fallbacks to `angha_deps` fail (see
-  [ExeBenchPlus.md](ExeBenchPlus.md#building-a-translation-unit)).
+  [ExeBench-FHD.md](ExeBench-FHD.md#building-a-translation-unit)).
 
 ## Train/test overlap
 
@@ -275,7 +275,7 @@ overstate performance on typical code.
 
 ## Open issues
 
-These are not addressed by any ExeBenchPlus field.
+These are not addressed by any ExeBench-FHD field.
 
 - **Repository-level overlap.** The evaluation splits test generalization to
   unseen functions, not unseen codebases. Fixing this needs a repository-aware

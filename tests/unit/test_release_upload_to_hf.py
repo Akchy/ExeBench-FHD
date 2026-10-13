@@ -31,8 +31,8 @@ def test_card_documents_every_field_of_the_converter():
 
 
 def test_render_card_fills_repo_id():
-    text = up.render_card(CARD, "anon/ExeBenchPlus")
-    assert "{{repo_id}}" not in text and 'load_dataset("anon/ExeBenchPlus"' in text
+    text = up.render_card(CARD, "anon/ExeBench-FHD")
+    assert "{{repo_id}}" not in text and 'load_dataset("anon/ExeBench-FHD"' in text
 
 
 def test_check_passes_when_card_and_data_agree(tmp_path):

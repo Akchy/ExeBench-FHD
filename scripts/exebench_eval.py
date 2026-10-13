@@ -34,7 +34,7 @@ def select_exe_wrapper(row, opt_level, track='real'):
 
 
 def select_exe_wrappers(row, opt_level, track='real'):
-    """ExeBenchPlus's wrapper: the candidate wrappers for `track` at `opt_level`, in order.
+    """ExeBench-FHD's wrapper: the candidate wrappers for `track` at `opt_level`, in order.
 
     Above O0 a row with unused_param set has two valid calling forms, the arity-reduced
     opt_{track}_exe_wrapper (what the optimized code shows) and the full-signature
@@ -174,7 +174,7 @@ def _process_prediction(item, idx, preds, row, debug, opt_level=None):
         io_outputs = row['real_io_pairs']['output']
         base = row.get('real_deps', '') + '\n' + pred_deps + '\n' + code + '\n'
 
-        # ExeBenchPlus's wrapper: correct if it passes either calling form (reduced or full).
+        # ExeBench-FHD's wrapper: correct if it passes either calling form (reduced or full).
         preds['re-compile'] = False
         preds['re-execute'] = False
         for cpp_wrapper in select_exe_wrappers(row, opt_level=opt_level, track='real'):

@@ -1,4 +1,4 @@
-"""Shared fixtures for the ExebenchPlus test suite.
+"""Shared fixtures for the ExeBench-FHD test suite.
 
 Two schemas recur across scripts/ and get their own factory fixture here:
 

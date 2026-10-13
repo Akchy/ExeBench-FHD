@@ -1,6 +1,6 @@
-# ExeBenchPlus
+# ExeBench-FHD
 
-Code for ExeBenchPlus, an audited and extended version of
+Code for ExeBench-FHD, an audited and extended version of
 [ExeBench](https://github.com/jordiae/exebench), a dataset of executable C
 functions for training and evaluating neural decompilers.
 
@@ -9,7 +9,7 @@ problems we found mean that a function's C source cannot be fully recovered
 from its assembly: parameter order is ambiguous when integer and
 floating-point parameters are mixed, unused parameters vanish from optimized
 code, and constants referenced by the function are not part of the record.
-ExeBenchPlus keeps the 16 columns of ExeBench's Hugging Face release unchanged
+ExeBench-FHD keeps the 16 columns of ExeBench's Hugging Face release unchanged
 and adds 16 fields that supply the missing information or flag unreliable
 records. Records are flagged, not removed, so the dataset can replace ExeBench
 directly.
@@ -34,7 +34,7 @@ appendix. The dataset card, including loading instructions, is in
 | `trivial_function` | Empty body, bare `return`, or at most two lines |
 | `truncated_funcs` | `func_def` has lost its return type or part of its name upstream |
 
-- [`md_files/ExeBenchPlus.md`](md_files/ExeBenchPlus.md): how each field is
+- [`md_files/ExeBench-FHD.md`](md_files/ExeBench-FHD.md): how each field is
   computed, design decisions, and validation results.
 - [`md_files/Exebench_issues.md`](md_files/Exebench_issues.md): the audit of
   ExeBench, with per-split statistics, train/test overlap, and open issues.
@@ -51,7 +51,7 @@ appendix. The dataset card, including loading instructions, is in
   ```
 
   Do not install `gcc-multilib`; on Debian/Ubuntu it conflicts with the ARM
-  cross compilers (see [`md_files/ExeBenchPlus.md`](md_files/ExeBenchPlus.md#architectures-and-toolchain)).
+  cross compilers (see [`md_files/ExeBench-FHD.md`](md_files/ExeBench-FHD.md#architectures-and-toolchain)).
 - Python packages: the extraction, audit and evaluation code uses only the
   standard library. Tests need `pytest`; `scripts/release` needs `pyarrow`,
   `datasets`, `pyyaml` and `huggingface_hub`; `scripts/survey` uses `pyarrow` for reading
@@ -72,7 +72,7 @@ All commands below are run from the repository root.
 ├── dataset_card/README.md   Hugging Face dataset card
 ├── md_files/                design notes and audit (see above)
 ├── scripts/
-│   ├── exebenchplus_pipeline/   runs all per-record extractors and merges the fields
+│   ├── exebench_fhd_pipeline/   runs all per-record extractors and merges the fields
 │   ├── extract/                 one extractor per field, each usable on its own
 │   ├── preprocess/              shared compile, disassemble and asm-cleaning helpers
 │   ├── exebench/                ExeBench's evaluation harness (Exebench_Wrapper, diff_io)
@@ -83,7 +83,7 @@ All commands below are run from the repository root.
 │   ├── examples/                small runnable evaluation example with sample data
 │   ├── check_split_leakage.py   split reader (iter_split) and train/test overlap audit
 │   ├── regen_asm.py             static/inline stripping and dependency selection
-│   ├── exebenchplus_eval.py     evaluation on the released ExeBenchPlus records
+│   ├── exebench_fhd_eval.py     evaluation on the released ExeBench-FHD records
 │   └── eval_utils.py
 └── tests/
     ├── unit/
@@ -92,22 +92,22 @@ All commands below are run from the repository root.
 
 ## Computing the fields
 
-`scripts.exebenchplus_pipeline` adds `no_return`, `dummy_udt`,
+`scripts.exebench_fhd_pipeline` adds `no_return`, `dummy_udt`,
 `trivial_function`, `truncated_funcs`, `unused_param`, `opt_*_exe_wrapper`,
 `func_call` and `data_section` to every record of a split:
 
 ```bash
 # 20 records of one split
-python -m scripts.exebenchplus_pipeline --split test_real --n 20 \
+python -m scripts.exebench_fhd_pipeline --split test_real --n 20 \
     --out output_files/test_real_sample.jsonl
 
 # a whole split, 32 worker processes, resumable
-python -m scripts.exebenchplus_pipeline --split test_real --all --workers 32 --resume \
+python -m scripts.exebench_fhd_pipeline --split test_real --all --workers 32 --resume \
     --out output_files/test_real.jsonl
 
 # every split, one file per split in --out-dir
-python -m scripts.exebenchplus_pipeline --split all --all --workers 32 --resume \
-    --out-dir output_files/exebenchplus
+python -m scripts.exebench_fhd_pipeline --split all --all --workers 32 --resume \
+    --out-dir output_files/exebench_fhd
 ```
 
 Main options (`--help` lists all):
@@ -120,7 +120,7 @@ Main options (`--help` lists all):
 | `--archs` | all four | subset of `x86,x86-64,ARM32,ARM64` |
 | `--workers` | `1` | worker processes; records are independent |
 | `--resume` | off | continue an interrupted run with the same `--out` |
-| `--work-dir` | `output_files/exebenchplus_pipeline_work` | scratch directory for build files |
+| `--work-dir` | `output_files/exebench_fhd_pipeline_work` | scratch directory for build files |
 | `--keep-artifacts` | off | keep the generated `.c` and binary files |
 
 Each record takes about 8 compiler and objdump invocations, roughly 0.8 s when
@@ -147,7 +147,7 @@ Each script in `scripts/extract/` can also be run alone to compute one field
 
 ## Evaluation
 
-`scripts/exebenchplus_eval.py` re-compiles and re-executes predicted C functions
+`scripts/exebench_fhd_eval.py` re-compiles and re-executes predicted C functions
 against ExeBench's I/O pairs. `select_exe_wrapper` uses `opt_*_exe_wrapper`
 for records with `unused_param` set when the prediction comes from optimized
 assembly. A self-contained example with two records:
@@ -159,7 +159,7 @@ python -m scripts.examples.run_sample_eval
 To evaluate a predictions file against a release split or a JSON list of rows:
 
 ```bash
-python -m scripts.exebenchplus_eval --predictions preds.json \
+python -m scripts.exebench_fhd_eval --predictions preds.json \
     --dataset test_real.jsonl --model-name my_model --opt O2 --workers 16
 ```
 
@@ -259,12 +259,12 @@ Further details are in [`md_files/Exebench_issues.md`](md_files/Exebench_issues.
 ## License
 
 The code is released under the Apache-2.0 license (see `LICENSE`). The
-ExeBenchPlus fields are released under the MIT license; the C functions keep
+ExeBench-FHD fields are released under the MIT license; the C functions keep
 the licenses of the repositories they come from, as in ExeBench.
 
 ## Citation
 
-The ExeBenchPlus citation will be added after review. Please also cite
+The ExeBench-FHD citation will be added after review. Please also cite
 ExeBench:
 
 > Jordi Armengol-Estapé, Jackson Woodruff, Alexander Brauckmann, José Wesley
